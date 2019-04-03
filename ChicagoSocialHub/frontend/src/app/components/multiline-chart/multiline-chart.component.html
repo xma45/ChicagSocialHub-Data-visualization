@@ -1,0 +1,18 @@
+<h2>{{ title }}</h2>
+<p> multiline chart goes here</p>
+<form>
+    <input type="button" value="Return to previous page" onClick="javascript:history.go(-1)" />
+  </form>
+  <button mat-raised-button color="primary" [matMenuTriggerFor]="menu">Real time Chart</button>
+        <mat-menu #menu="matMenu">
+          <button (click)="realtimechart(1)" mat-menu-item>1 Hour</button>
+          <button (click)="realtimechart(24)" mat-menu-item>24 Hours</button>
+          <button (click)="realtimechart(168)" mat-menu-item>7 Days</button>
+        </mat-menu>
+  
+        <button mat-raised-button color="primary" routerLink="/multiline_chart">
+          SMA chart
+          &nbsp; &nbsp; &nbsp;    
+        </button>
+<svg class="MultiLineChartComponent" width="960" height="500"></svg>
+    
