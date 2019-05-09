@@ -1,9 +1,9 @@
 
 
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { MatTableDataSource } from '@angular/material';
+import { MatTableDataSource, MatSort } from '@angular/material';
 
 
 import { HttpClient } from '@angular/common/http';
@@ -31,13 +31,14 @@ const httpOptions = {
   styleUrls: ['./list-of-places.component.css']
 })
 
-
 export class ListOfPlacesComponent implements OnInit {
 
+  @ViewChild(MatSort) sort: MatSort;
   uri = 'http://localhost:4000';
 
   places: Place[]=[];
-
+ 
+  dataSource = new MatTableDataSource<Place>();
   
   displayedColumns = ['name', 'display_phone', 'address1', 'is_closed', 'rating','review_count', 'Divvy'];
 
@@ -47,22 +48,38 @@ export class ListOfPlacesComponent implements OnInit {
   ngOnInit() {
 
     this.fetchPlaces();
-
+    
   }
 
+ 
 
 
-
-
+  
   fetchPlaces() {
     this.placesService
       .getPlaces()
       .subscribe((data: Place[]) => {
         this.places = data;
+        this.dataSource.data = this.places;
+        console.log(this.dataSource)
+        
       });
   }
 
+  ngAfterViewInit() {
+    this.dataSource.sort = this.sort;
+  }
+  chart_type(type){
+    if(type==1){
+      this.router.navigate(['/bar_chart']);
+    }
+    else if (type==2){
 
+      this.router.navigate(['/review_bar_chart']);
+    }
+    
+
+  }
 
   
   findStations(placeName) {

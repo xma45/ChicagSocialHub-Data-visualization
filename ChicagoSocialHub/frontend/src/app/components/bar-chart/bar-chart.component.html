@@ -1,7 +1,17 @@
 <h2>{{ title }}</h2>
-<p> bar chart goes here</p>
-<form>
-    <input type="button" value="Return to previous page" onClick="javascript:history.go(-1)" />
-  </form>
+<br><br>
+<button mat-raised-button color="primary" routerLink="/find">
+  Home Page
+  &nbsp; &nbsp; &nbsp; 
+  <mat-icon>search</mat-icon>  
+  </button>
+  &nbsp; &nbsp; &nbsp;
+  <button  class="bb" mat-raised-button color="primary" routerLink="/list_of_places">
+    Back
+    &nbsp; &nbsp; &nbsp;
+    <mat-icon>keyboard_backspace</mat-icon>
+  </button>
+  &nbsp; &nbsp; &nbsp; 
+<br>
 <svg class="BarChartComponent" width="960" height="500"></svg>
     

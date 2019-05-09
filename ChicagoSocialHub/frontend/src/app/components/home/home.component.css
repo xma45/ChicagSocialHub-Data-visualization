@@ -1,0 +1,32 @@
+button.b1.mat-raised-button.mat-primary{
+    position:fixed;
+    top: 50%;
+    left: 40%;
+    background-color: blue;
+    color: white;
+    font-size: 16px;
+    padding: 12px 24px;
+    border: none;
+    cursor: pointer;
+    /* border-radius: 5px; */
+    
+    display: flexbox;
+
+    
+} 
+ 
+
+ button.b2.mat-raised-button.mat-primary{
+    position: fixed;
+    top: 50%;
+    left:50%;
+    background-color: blue;
+    color: white;
+    font-size: 16px;
+    padding: 12px 24px;
+    border: none;
+    cursor: pointer;
+    
+    display: flexbox;
+
+}

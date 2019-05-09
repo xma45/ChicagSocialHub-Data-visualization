@@ -25,6 +25,7 @@ import { catchError, map, tap } from 'rxjs/operators';
 
 
 import { Place } from './place';
+import { Station } from './station';
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/catch';
 
@@ -108,7 +109,9 @@ export class PlacesService {
   //   return this.http.post(`${this.uri}/plot_station`, plot_stations_at, httpOptions);
 
   //   }
-
+  getAllPlaces() : Observable<Place[]> {
+    return this.http.get<Place[]>(`${this.uri}/all_places`);
+  }
   getPlot_station(){
     return this.http.get(`${this.uri}/plot_station`);
   }
@@ -121,6 +124,42 @@ export class PlacesService {
       console.log()
       var str = JSON.stringify(plot_stations_at, null, 2);
       return this.http.post(`${this.uri}/plot_station`, plot_stations_at, httpOptions);
+  
+  
+    }
+
+    placesservices
+
+getLogstash_divvy_data(): Observable<Station[]>{
+    return this.http.get<Station[]>(`${this.uri}/logstashdata`);
+  }
+  
+  logstash_divvy_data(stationName,hours){
+    const stationNameDetails={
+      stationName: stationName,
+      hours:hours
+    };
+    console.log("placeservices-hours:",hours)
+    var str = JSON.stringify(stationNameDetails, null, 2);
+    return this.http.post(`${this.uri}/logstash_data`, stationNameDetails, httpOptions);
+
+  
+  }
+  getDivvy_heatmap(){
+    return this.http.get(`${this.uri}/divvy_docks`);
+  }
+  
+    divvy_heatmap(hours){
+      const find_stations_at = {
+        placeName: "Chicago",
+        hours: hours
+      };
+  
+      
+      
+      //var str = JSON.stringify( null, 2);
+      console.log("call heatmap")
+      return this.http.post(`${this.uri}/divvy_docks/find`,find_stations_at, httpOptions);
   
   
     }

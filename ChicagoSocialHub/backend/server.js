@@ -54,6 +54,8 @@ const esClient = new elasticsearch.Client({
 });
 
 
+
+
 // Connect to PostgreSQL server
 
 var conString = "pg://mahang:657093@127.0.0.1:5432/chicago_divvy_stations";
@@ -85,6 +87,9 @@ var places_found = [];
 var stations_found = [];
 var place_selected;
 var station_selected;
+var divvy_heatmap_data=[];
+var logstash_divvy_data =[];
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -94,7 +99,56 @@ var station_selected;
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
+router.route('/all_places').get((req, res) => {
 
+    find_all_places_logs_task_completed = false;             
+
+    find_all_places_from_divvy().then(function (response) {
+        var hits = response;
+        res.json(all_places);
+    });
+
+  
+});
+async function find_all_places_from_divvy(){
+    all_places = [];
+
+    let body = {
+        size: 1000,
+        from: 0,
+        "query": {
+          "bool" : {
+            "should" : [
+              { "term" : { "is_closed" : "false" } }
+            ],
+          }
+        }
+    }
+
+
+    results = await esClient.search({index: 'chicago_yelp_reviews', body: body});
+
+    results.hits.hits.forEach((hit, index) => {        
+
+        var place = {
+                "name": hit._source.name,
+                "display_phone": hit._source.display_phone,
+                "address1": hit._source.location.address1,
+                "is_closed": hit._source.is_closed,
+                "rating": hit._source.rating,
+                "review_count": hit._source.review_count,
+                "latitude": hit._source.coordinates.latitude,    
+                "longitude": hit._source.coordinates.longitude
+        };
+
+        all_places.push(place);
+
+    });
+
+    find_all_places_logs_task_completed = true;     
+
+}
+///////////////////////////////////////////
 
 
 router.route('/places').get((req, res) => {
@@ -143,42 +197,7 @@ router.route('/places/find').post((req, res) => {
     });
 
 });
-//selected station 
-// router.route('/plot_station').get((req, res) => {
-   
-//     res.json(station_selected)
-           
-// });
 
-// router.route('/plot_station').post((req, res) => {
-
-//     var str = JSON.stringify(req.body, null, 4);
-
-//     for (var i = 0,len = stations_found.length; i < len; i++) {
-
-//         if ( stations_found[i].stationName === req.body.stationName ) { // strict equality test
-
-//             station_selected = stations_found[i];
-
-//             break;
-//         }
-//     }
- 
-//     const query1= {
-//         //prepared statement --- google node-postgres
-//         // give the query a unique name
-//         name: 'fetch-divvy-log',
-//         text: ' SELECT * FROM divvy_stations_logs where divvy_stations_logs.stationName=$1 ORDER BY divvy_stations_logs.lastCommunicationTime',
-//         values: [station_selected.stationName]
-//     }
-
-//     find_plot_stations_from_divvy(query1).then(function (response) {
-//         var hits = response;
-//         res.json({'station_selected': 'Added successfully'});
-//     });
- 
-
-// });
 
 
 //plot stations
@@ -210,7 +229,7 @@ router.route('/plot_station').post((req, res) => {
     stationName = req.body.stationName;
     console.log(stationName);
 
-    console.log(stationName);
+    
 
 
     formatdate = moment(date.setHours(date.getHours() - timeInterval)).format('YYYY-MM-DD, h:mm:ss a');
@@ -223,7 +242,7 @@ router.route('/plot_station').post((req, res) => {
     const query1 = {
         
         name: 'fetch-realtime',
-        text:'SELECT DISTINCT *FROM divvy_stations_logs WHERE city=$1 and lastcommunicationtime>=$2 and stationname = $3 ORDER BY lastcommunicationtime',
+        text:'SELECT DISTINCT * FROM divvy_stations_logs WHERE city=$1 and lastcommunicationtime>=$2 and stationname = $3 ORDER BY lastcommunicationtime',
         values: ['Chicago', formatdate, stationName]
     }
 
@@ -299,7 +318,92 @@ router.route('/stations/find').post((req, res) => {
 });
 
 
+/////////////////////logstash/////////////////////////////////////
+router.route('/logstashdata').get((req, res) => {
 
+    res.json(logstash_divvy_data)
+
+});
+
+router.route('/logstash_data').post((req, res) => {
+
+    var str = JSON.stringify(req.body, null, 4);
+
+    logstash_divvy_task_completed = false;
+
+    date = new Date();
+
+    timeInterval = req.body.hours;
+    console.log("server-hours:", timeInterval)
+    console.log("time Interval from front end", timeInterval);
+
+    formatdate = moment(date.setHours(date.getHours() - timeInterval)).format('YYYY-MM-DD HH:mm:ss');
+    // formatdate = date.setHours(date.getHours() - timeInterval);
+
+    console.log("Formated Date: ", formatdate);
+
+
+    find_logstash_divvy_data(req.body.stationName, formatdate).then(function (response) {
+        var hits = response;
+        res.json(logstash_divvy_data);
+    });
+
+});
+async function find_logstash_divvy_data(stationName, formatdate) {
+
+    logstash_divvy_data = [];
+    console.log(formatdate)
+    let body = {
+        size: 2000,
+        from: 0,
+        "query": {
+            "bool": {
+                "must": {
+
+                    "match": { "stationName.keyword": stationName }
+                },
+                "filter": {
+                    "range": { "lastCommunicationTime.keyword": { "gte": formatdate } }
+
+                }
+
+            }
+        },
+        "sort": {
+            "lastCommunicationTime.keyword": { "order": "asc" }
+        }
+    }
+
+    console.log("query passed");
+
+    results = await esClient.search({ index: 'chicago_divvy_data', body: body });
+    logstash_divvy_data = [];
+    results.hits.hits.forEach((hit, index) => {
+        //console.log("hits passed");
+
+        var station = {
+            "id": hit._source.id,
+            "stationName": hit._source.stationName,
+            "availableBikes": hit._source.availableBikes,
+            "availableDocks": hit._source.availableDocks,
+            "is_renting": hit._source.is_renting,
+            "lastCommunicationTime": hit._source.lastCommunicationTime,
+            "latitude": hit._source.latitude,
+            "longitude": hit._source.longitude,
+            "status": hit._source.status,
+            "totalDocks": hit._source.totalDocks
+        };
+        logstash_divvy_data.push(station);
+
+    });
+    console.log(logstash_divvy_data.length);
+
+    logstash_divvy_task_completed = true;
+
+}
+
+
+/////////////////////Endlogstash/////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -342,7 +446,87 @@ async function find_stations_from_divvy(query) {
 }
 
 
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
+//////////////////// Logstash Data ///////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+
+// router.route('/logstashdata').get((req, res) => {
+
+//     res.json(divvy_logstash_data)
+
+// });
+
+// router.route('/logstashdata').post((req, res) => {
+
+//     var str = JSON.stringify(req.body, null, 4);
+
+//     divvy_logstash_data_completed = false;
+
+//     date = new Date();
+//     timeInterval = req.body.hours;
+//     formatdate = moment(date.setHours(date.getHours() - timeInterval)).format('YYYY-MM-DD HH:mm:ss');
+
+//     find_divvy_logstash_data(req.body.stationName, formatdate).then(function (response) {
+//         var hits = response;
+//         res.json(divvy_logstash_data);
+//     });
+
+// });
+// async function find_divvy_logstash_data(stationName, formatdate) {
+
+//     divvy_logstash_data= [];
+//     let body = {
+//         size: 10000,
+//         from: 0,
+//         "query": {
+//             "bool": {
+//                 "must": {
+
+//                     "match": { "stationName.keyword": stationName }
+//                 },
+//                 "filter": {
+//                     "range": { "lastCommunicationTime.keyword": { "gte": formatdate } }
+
+//                 }
+
+//             }
+//         },
+//         "sort": {
+//             "lastCommunicationTime.keyword": { "order": "asc" }
+//         }
+//     }
+
+
+//     results = await esClient.search({ index: 'divvy_stations_logs', body: body });
+//     logstash_divvy_data = [];
+//     results.hits.hits.forEach((hit, index) => {
+
+
+//         var station = {
+//             "id": hit._source.id,
+//             "stationName": hit._source.stationName,
+//             "availableBikes": hit._source.availableBikes,
+//             "availableDocks": hit._source.availableDocks,
+//             "is_renting": hit._source.is_renting,
+//             "lastCommunicationTime": hit._source.lastCommunicationTime,
+//             "latitude": hit._source.latitude,
+//             "longitude": hit._source.longitude,
+//             "status": hit._source.status,
+//             "totalDocks": hit._source.totalDocks
+//         };
+//         divvy_logstash_data.push(station);
+        
+
+//     });
+
+//     divvy_logstash_data_completed = true;
+
+// }
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -430,10 +614,120 @@ async function find_places_from_yelp(place, where) {
     find_places_task_completed = true;             
       
 }
-
-
-
 app.use('/', router);
 
 app.listen(4000, () => console.log('Express server running on port 4000'));
+
+////////////////////////heatmap data//////////////////////////////////
+
+router.route('/divvy_docks').get((req, res) => {
+
+    res.json(heatmap_data);
+
+});
+
+router.route('/divvy_docks/find').post((req, res) => {
+  
+	var str = JSON.stringify(req.body, null, 4);
+
+    logstash_divvy_task_completed = false;
+
+    date = new Date();
+
+    timeInterval = req.body.hours;
+    console.log("server-hours:", timeInterval)
+    console.log("time Interval from front end", timeInterval);
+
+    formatdate = moment(date.setHours(date.getHours() - timeInterval)).format('YYYY-MM-DD HH:mm:ss');
+    // formatdate = date.setHours(date.getHours() - timeInterval);
+
+    console.log("Formated Date: ", formatdate);
+
+
+    find_logstash_divvy_heatmap_data(req.body.stationName, formatdate).then(function (response) {
+        var hits = response;
+        res.json(heatmap_data);
+    });
+	
+
+
+});
+
+
+async function find_logstash_divvy_heatmap_data(stationName, formatdate) {
+
+    heatmap_data = [];
+    console.log(formatdate)
+    let body = {
+        size: 1000000,
+        from: 0,
+        "query": {
+            "bool": {
+                "filter": {
+                    "range": { "lastCommunicationTime.keyword": { "gte": formatdate } }
+                }
+
+            }
+        },
+        "sort": {
+            "lastCommunicationTime.keyword": { "order": "asc" }
+        }
+    }
+
+    console.log("query passed");
+
+    results = await esClient.search({ index: 'chicago_divvy_data', body: body });
+    heatmap_data = [];
+    results.hits.hits.forEach((hit, index) => {
+        //console.log("hits passed");
+
+        var station = {
+            "id": hit._source.id,
+            "stationName": hit._source.stationName,
+            "availableBikes": hit._source.availableBikes,
+            "availableDocks": hit._source.availableDocks,
+            "is_renting": hit._source.is_renting,
+            "lastCommunicationTime": hit._source.lastCommunicationTime,
+            "latitude": hit._source.latitude,
+            "longitude": hit._source.longitude,
+            "status": hit._source.status,
+            "totalDocks": hit._source.totalDocks
+        };
+        heatmap_data.push(station);
+
+    });
+
+    logstash_divvy_task_completed = true;
+
+}
+
+async function find_heatmap_data(heatmap_query) {
+
+    const response = await pgClient.query(heatmap_query);
+	console.log("yahaan aya",response);
+    heatmap_data = [];
+
+
+    for (var i = 0; i < response.rows.length; i++) {
+        plainTextDateTime = moment(response.rows[i].lastcommunicationtime).format('YYYY-MM-DD, h:mm:ss a');
+
+        var station = {
+            "id": response.rows[i].id,
+            "stationName": response.rows[i].stationname,
+            "availableBikes": response.rows[i].availablebikes,
+            "availableDocks": response.rows[i].availabledocks,
+            "is_renting": response.rows[i].is_renting,
+            "lastCommunicationTime": plainTextDateTime,
+            "latitude": response.rows[i].latitude,
+            "longitude": response.rows[i].longitude,
+            "status": response.rows[i].status,
+            "totalDocks": response.rows[i].totaldocks
+        };
+        heatmap_data.push(station);
+
+
+    }
+
+}
+
 

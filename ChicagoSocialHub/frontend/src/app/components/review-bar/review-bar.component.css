@@ -1,0 +1,26 @@
+
+
+
+.bar-chart {
+    background-color: #C7D9D9;
+}
+
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.bar {
+    fill: steelblue;
+}
+
+.bar:hover {
+    fill: brown;
+}
+
+.axis-title {
+    fill: none;
+    stroke: black;
+    stroke-width: 0.5px;
+}

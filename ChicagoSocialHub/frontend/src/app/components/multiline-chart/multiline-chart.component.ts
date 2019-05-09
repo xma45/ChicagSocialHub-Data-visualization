@@ -6,6 +6,7 @@ import { Station } from '../../station';
 import { PlacesService } from '../../places.service';
 import * as d3 from 'd3-selection';
 import * as d3Scale from 'd3-scale';
+import * as d3Time from 'd3-time';
 import * as d3ScaleChromatic from 'd3-scale-chromatic';
 import * as d3Shape from 'd3-shape';
 import * as d3Array from 'd3-array';
@@ -38,9 +39,10 @@ export class MultiLineChartComponent implements OnInit {
       this.activatedRoute.queryParams.subscribe((params: Params) => {
           console.log(params);
     
-        
+        this.hours = params.hours
     
           this.StationName = params.stationName;
+          
     
           console.log(this.StationName);
         });
@@ -48,29 +50,41 @@ export class MultiLineChartComponent implements OnInit {
   private margin = { top: 20, right: 20, bottom: 30, left: 100 };
   private width: number;
   private height: number;
-  stations: Station[] = [];
+  stations: Station[]=[];
   private x: any;
   private y: any;
   private svg: any;
   private line: d3Shape.Line<[number, number]>;
   private g: any;
-
+  private hours: any = 1;
+private granularityConst: any;
 
   ngOnInit() {
 
-      this.station_selected();
+      this.realtimechart(this.hours);
+      setInterval(()=>{this.realtimechart(this.hours);},120000)
 
+  }
+
+  setgranularity(){
+      console.log(1234, this.hours)
+    if (this.hours==1){
+        this.granularityConst=d3Time.timeMinute.every(2);
+    }
+    else if (this.hours==24){
+        this.granularityConst=d3Time.timeHour.every(1);
+    }
+    else if (this.hours==168){
+        this.granularityConst=d3Time.timeDay.every(1);
+    }
   }
 
   realtimechart(hours) {
 
-      var stationName = this.StationName;
+    this.hours = hours;
+          console.log(hours);
+      this.PlacesService.logstash_divvy_data(this.StationName, this.hours).subscribe(() => {
 
-      console.log(stationName);
-      console.log(hours);
-      this.PlacesService.plot_station(stationName, hours).subscribe(() => {
-
-          d3.selectAll("svg > *").remove();
 
           this.station_selected();
 
@@ -80,9 +94,11 @@ export class MultiLineChartComponent implements OnInit {
   }
   station_selected() {
       this.PlacesService
-          .getPlot_station()
+          .getLogstash_divvy_data()
           .subscribe((data: Station[]) => {
               this.stations = data;
+              this.setgranularity()
+              d3.selectAll("svg > *").remove();
 
               console.log("fetchStation_Selected:", data);
               this.svg = d3.select('svg');
@@ -100,7 +116,7 @@ export class MultiLineChartComponent implements OnInit {
                   .attr('class', 'x axis')
                   .attr('transform', 'translate(0,' + this.height + ')')
                   .text('Time')
-                  .call(d3Axis.axisBottom(this.x));
+                  .call(d3Axis.axisBottom(this.x).ticks(this.granularityConst));
               this.g.append('g')
                   .attr('class', 'y axis')
                   .call(d3Axis.axisLeft(this.y))
@@ -110,7 +126,7 @@ export class MultiLineChartComponent implements OnInit {
                   .attr('y', 6)
                   .attr('dy', '0.71em')
                   .attr('fill', '#000')
-                  .text('totalDocks');
+                  .text('availableDocks');
 
               this.line = d3Shape.line()
                   .x((d: any) => this.x(new Date(d.lastCommunicationTime.toString())))//d.loggingtime

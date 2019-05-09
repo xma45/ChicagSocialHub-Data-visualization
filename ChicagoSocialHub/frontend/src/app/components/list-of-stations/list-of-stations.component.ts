@@ -4,7 +4,7 @@
 
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { MatTableDataSource } from '@angular/material';
+import { MatTableDataSource , MatSort} from '@angular/material';
 
 import { Station } from '../../station';
 import { PlacesService } from '../../places.service';
@@ -38,13 +38,15 @@ interface Location {
   styleUrls: ['./list-of-stations.component.css']
 })
 export class ListOfStationsComponent implements OnInit {
+  @ViewChild(MatSort) sort: MatSort;
+  
 
   stations: Station[];
   markers: Station[];
   placeSelected: Place;
   places: Place[]=[];
-  displayedColumns = ['id', 'stationName', 'availableBikes', 'availableDocks', 'is_renting', 'lastCommunicationTime', 'latitude',  'longitude', 'status', 'totalDocks','plot_station'];
-
+  displayedColumns = ['id', 'stationName', 'availableBikes', 'availableDocks', 'is_renting', 'lastCommunicationTime', 'latitude',  'longitude', 'status', 'totalDocks','linechart', 'SMA', 'sbc'];
+  dataSource = new MatTableDataSource<Station>();
 
   icon = {
     url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
@@ -71,9 +73,10 @@ export class ListOfStationsComponent implements OnInit {
       .subscribe((data: Station[]) => {
         this.stations = data;
         this.markers = data;
-
+        this.dataSource.data = this.stations;
       });
   }
+  
 
 
   getPlaceSelected() {
@@ -83,6 +86,9 @@ export class ListOfStationsComponent implements OnInit {
         this.placeSelected = data;
 
       });
+  }
+  ngAfterViewInit() {
+    this.dataSource.sort = this.sort;
   }
 
   
@@ -103,30 +109,33 @@ public location:Location = {
 };
 
 
-// plot_station(stationName) {
 
-//   for (var i = 0,len = this.stations.length; i < len; i++) {
-
-//     if ( this.stations[i].stationName === stationName ) { // strict equality test
-
-//         var station_selected =  this.stations[i];
-
-//         break;
-//     }
-//   }
-
-// console.log("station_selected",station_selected);
-//   this.placesService.plot_station(stationName).subscribe(() => {
-//     this.router.navigate(['/multiline_chart']);
+goHeatmap(): void{
   
-//   });
+    this.router.navigate(['/heatmap']);
+}
+SMA_selected(stationName,hours){
+  for (var i = 0,len = this.stations.length; i < len; i++) {
+
+    if ( this.stations[i].stationName === stationName ) { // strict equality test
+
+        var  station_selected =  this.stations[i];
+
+        break;
+    }
+  }
+  console.log("For loop worked in dashboard,station_selected:",station_selected);
+ 
+  this.placesService.plot_station(stationName,hours).subscribe(() => {
+    this.router.navigate(['/sma_chart'], { queryParams: {stationName,hours} });
+    console.log("sma reached here");
+  });
+
+}
 
 
 
-
-// }
-
-plot_station(stationName,hours){
+line_chart(stationName,hours){
   for (var i = 0,len = this.stations.length; i < len; i++) {
 
     if ( this.stations[i].stationName === stationName ) { // strict equality test
@@ -144,6 +153,22 @@ plot_station(stationName,hours){
   });
 }
 
+stacked_bar_chart(stationName,hours){
+  for (var i = 0,len = this.stations.length; i < len; i++) {
 
+    if ( this.stations[i].stationName === stationName ) { // strict equality test
+
+        var  station_selected =  this.stations[i];
+
+        break;
+    }
+  }
+  
+  this.placesService.plot_station(stationName,hours).subscribe(() => {
+    this.router.navigate(['/stackbar'], { queryParams: {stationName,hours} });
+    
+  });
+
+}
 
 }
